@@ -1,6 +1,6 @@
+import './config/env.js';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import healthRoutes from './routes/healthRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import vendorRoutes from './routes/vendorRoutes.js';
@@ -12,10 +12,8 @@ import requestRoutes from './routes/requestRoutes.js';
 import notifyRoutes from './routes/notifyRoutes.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 
-dotenv.config();
-
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT || '5001', 10);
 
 // Security & Parsing Middlewares
 app.use(cors({
