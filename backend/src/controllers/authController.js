@@ -6,6 +6,9 @@ export const register = async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: 'Registration successful. Please check your email to verify your account.',
+      token: result.token,
+      user: result.user,
+      vendor: result.vendor,
       data: result
     });
   } catch (error) {
@@ -20,6 +23,8 @@ export const login = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Login successful.',
+      token: result.token,
+      user: result.user,
       data: result
     });
   } catch (error) {
