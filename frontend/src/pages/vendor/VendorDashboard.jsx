@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, AlertTriangle, CheckCircle, XCircle, Plus, ShieldAlert, Clock, RefreshCw, Search, Edit2, Trash2 } from 'lucide-react';
+import { Package, AlertTriangle, CheckCircle, XCircle, Plus, ShieldAlert, Clock, RefreshCw, Search, FileText, Check, X } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { Input, Select } from '../../components/common/Input';
@@ -8,8 +8,10 @@ import { useNotification } from '../../context/NotificationContext';
 import api from '../../services/api';
 
 export const VendorDashboard = () => {
+  const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' | 'requests'
   const [vendor, setVendor] = useState(null);
   const [inventory, setInventory] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [catalogMedicines, setCatalogMedicines] = useState([]);
   const [stats, setStats] = useState({
     totalItems: 0,
@@ -47,15 +49,17 @@ export const VendorDashboard = () => {
         if (searchQuery) params.set('search', searchQuery);
         if (statusFilter !== 'ALL') params.set('statusFilter', statusFilter);
 
-        const [invRes, statsRes, catRes] = await Promise.all([
+        const [invRes, statsRes, catRes, reqRes] = await Promise.all([
           api.get(`/inventory?${params.toString()}`),
           api.get('/inventory/stats'),
-          api.get('/medicines?limit=200')
+          api.get('/medicines?limit=200'),
+          api.get('/requests')
         ]);
 
         setInventory(invRes.data.inventory);
         setStats(statsRes.data.stats);
         setCatalogMedicines(catRes.data.medicines);
+        setRequests(reqRes.data.requests);
       }
     } catch (err) {
       console.error('Failed to load vendor inventory:', err.message);
@@ -67,7 +71,7 @@ export const VendorDashboard = () => {
 
   useEffect(() => {
     fetchVendorData();
-  }, [statusFilter]);
+  }, [statusFilter, activeTab]);
 
   const isApproved = vendor?.status === 'APPROVED';
   const isPending = vendor?.status === 'PENDING';
@@ -134,6 +138,16 @@ export const VendorDashboard = () => {
     }
   };
 
+  const handleUpdateRequestStatus = async (requestId, newStatus) => {
+    try {
+      const res = await api.patch(`/requests/${requestId}/status`, { status: newStatus });
+      showToast(res.message, 'success');
+      fetchVendorData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   return (
     <div className="flex-1 bg-slate-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
@@ -154,16 +168,42 @@ export const VendorDashboard = () => {
             </p>
           </div>
 
-          <Button 
-            onClick={handleOpenAddModal}
-            variant="primary" 
-            disabled={!isApproved}
-            title={!isApproved ? 'Account must be approved before adding medicine stock' : ''}
-            className="gap-2 shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            Add Medicine Stock
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 bg-slate-200/70 p-1 rounded-lg">
+              <button
+                onClick={() => setActiveTab('inventory')}
+                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  activeTab === 'inventory' ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600 hover:text-navy-900'
+                }`}
+              >
+                Stock Inventory
+              </button>
+              <button
+                onClick={() => setActiveTab('requests')}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  activeTab === 'requests' ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600 hover:text-navy-900'
+                }`}
+              >
+                Customer Requests
+                {requests.filter(r => r.status === 'PENDING').length > 0 && (
+                  <span className="bg-purple-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                    {requests.filter(r => r.status === 'PENDING').length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            <Button 
+              onClick={handleOpenAddModal}
+              variant="primary" 
+              disabled={!isApproved}
+              title={!isApproved ? 'Account must be approved before adding medicine stock' : ''}
+              className="gap-2 shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              Add Stock Line
+            </Button>
+          </div>
         </div>
 
         {/* Dynamic Verification Status Banners */}
@@ -186,18 +226,6 @@ export const VendorDashboard = () => {
               <h4 className="font-bold text-sm text-emerald-950">Vendor Verified & Active</h4>
               <p className="mt-0.5 leading-relaxed">
                 Your vendor credentials have been approved by the platform administrator. Your listed medicines and real-time inventory are now publicly searchable by patients.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {isRejected && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-xs text-red-900">
-            <XCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="font-bold text-sm text-red-950">Vendor Account Registration Rejected</h4>
-              <p className="mt-0.5 leading-relaxed">
-                Your vendor registration was not approved. {vendor?.rejection_reason && <span><strong>Reason:</strong> {vendor.rejection_reason}</span>}
               </p>
             </div>
           </div>
@@ -246,119 +274,178 @@ export const VendorDashboard = () => {
           </Card>
         </div>
 
-        {/* Low Stock Warning Callout */}
-        {stats.lowStockCount > 0 && isApproved && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-900">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-              <span><strong>{stats.lowStockCount} items</strong> are currently below your specified minimum stock thresholds. Restock quickly to avoid out-of-stock listings.</span>
-            </div>
-            <Button onClick={() => setStatusFilter('LOW_STOCK')} variant="secondary" size="sm" className="shrink-0 text-xs">
-              View Low Stock List
-            </Button>
-          </div>
-        )}
-
-        {/* Inventory Overview Container */}
-        <Card
-          header={
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <h3 className="font-bold text-slate-800 text-sm">Active Inventory Directory</h3>
-
-              {isApproved && (
-                <div className="flex items-center gap-1.5 text-xs">
-                  {['ALL', 'AVAILABLE', 'LOW_STOCK', 'OUT_OF_STOCK'].map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setStatusFilter(tab)}
-                      className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
-                        statusFilter === tab
-                          ? 'bg-navy-900 text-white shadow-sm'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      {tab === 'ALL' ? 'All Stock' : tab === 'LOW_STOCK' ? 'Low Stock' : tab === 'OUT_OF_STOCK' ? 'Out of Stock' : 'Available'}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          }
-        >
-          {!isApproved ? (
-            <div className="py-8 text-center text-xs text-slate-500 space-y-2">
-              <ShieldAlert className="w-8 h-8 text-slate-400 mx-auto" />
-              <p className="font-medium text-slate-700">Inventory Publishing Restricted</p>
-              <p>You will be able to manage inventory stock, set pricing, and publish medicine lines once your account is approved.</p>
-            </div>
-          ) : isLoading ? (
-            <div className="py-12 text-center text-xs text-slate-500">
-              <RefreshCw className="w-6 h-6 text-teal-600 animate-spin mx-auto mb-2" />
-              Loading inventory records...
-            </div>
-          ) : inventory.length === 0 ? (
-            <div className="py-8 text-center text-xs text-slate-500 space-y-2">
-              <Package className="w-8 h-8 text-slate-400 mx-auto" />
-              <p className="font-medium text-slate-700">No inventory lines found.</p>
-              <p>Click "Add Medicine Stock" to publish your first inventory entry from the master catalog.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                  <tr>
-                    <th className="py-3 px-3">Medicine & Brand</th>
-                    <th className="py-3 px-3">Dosage / Form</th>
-                    <th className="py-3 px-3">Stock Quantity</th>
-                    <th className="py-3 px-3">Min Level</th>
-                    <th className="py-3 px-3">Price</th>
-                    <th className="py-3 px-3">Status</th>
-                    <th className="py-3 px-3">Last Updated</th>
-                    <th className="py-3 px-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {inventory.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 px-3 font-semibold text-slate-900">
-                        <div>{item.medicine_name}</div>
-                        <div className="text-[11px] font-normal text-slate-500">Brand: {item.brand}</div>
-                      </td>
-                      <td className="py-3.5 px-3 text-slate-600 font-mono">
-                        {item.dosage} / {item.form}
-                      </td>
-                      <td className="py-3.5 px-3 font-mono font-bold text-slate-900">
-                        {item.stock_quantity} units
-                      </td>
-                      <td className="py-3.5 px-3 text-slate-500 font-mono">{item.min_stock_level} units</td>
-                      <td className="py-3.5 px-3 font-bold text-navy-900">₹{parseFloat(item.price).toFixed(2)}</td>
-                      <td className="py-3.5 px-3">
-                        <AvailabilityBadge status={item.stock_status} />
-                      </td>
-                      <td className="py-3.5 px-3 text-slate-400 text-[11px]">
-                        {new Date(item.last_updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                      <td className="py-3.5 px-3 text-right space-x-2">
-                        <button
-                          onClick={() => handleOpenEditModal(item)}
-                          className="text-teal-600 font-medium hover:underline px-1.5 py-1"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item)}
-                          className="text-red-600 font-medium hover:underline px-1.5 py-1"
-                        >
-                          Remove
-                        </button>
-                      </td>
+        {activeTab === 'requests' ? (
+          <Card header={<h3 className="font-bold text-slate-800 text-sm flex items-center gap-2"><FileText className="w-4 h-4 text-purple-600" /> Patient Reservation Requests</h3>}>
+            {requests.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-500">No patient reservation requests received yet.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                    <tr>
+                      <th className="py-3 px-3">Patient Name</th>
+                      <th className="py-3 px-3">Contact</th>
+                      <th className="py-3 px-3">Medicine Requested</th>
+                      <th className="py-3 px-3">Qty</th>
+                      <th className="py-3 px-3">Date</th>
+                      <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-3 text-right">Update Order Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {requests.map((r) => (
+                      <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3.5 px-3 font-bold text-navy-900">{r.patient_name}</td>
+                        <td className="py-3.5 px-3 text-slate-600">
+                          <div>{r.patient_phone}</div>
+                          <div className="text-[11px] text-slate-400">{r.patient_email}</div>
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <div className="font-bold text-slate-800">{r.medicine_name}</div>
+                          <div className="text-[11px] text-slate-500">Brand: {r.brand} ({r.dosage})</div>
+                        </td>
+                        <td className="py-3.5 px-3 font-mono font-bold text-slate-900">{r.requested_quantity} units</td>
+                        <td className="py-3.5 px-3 text-slate-500">{new Date(r.created_at).toLocaleDateString()}</td>
+                        <td className="py-3.5 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                            r.status === 'FULFILLED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                            r.status === 'PENDING' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                            'bg-red-50 text-red-700 border border-red-200'
+                          }`}>
+                            {r.status}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3 text-right space-x-1.5">
+                          {r.status !== 'FULFILLED' && (
+                            <Button
+                              onClick={() => handleUpdateRequestStatus(r.id, 'FULFILLED')}
+                              variant="primary"
+                              size="sm"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-xs px-2 py-0.5"
+                            >
+                              Fulfill
+                            </Button>
+                          )}
+                          {r.status !== 'CANCELLED' && (
+                            <Button
+                              onClick={() => handleUpdateRequestStatus(r.id, 'CANCELLED')}
+                              variant="secondary"
+                              size="sm"
+                              className="text-xs px-2 py-0.5"
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        ) : (
+          /* Inventory Table */
+          <Card
+            header={
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <h3 className="font-bold text-slate-800 text-sm">Active Inventory Directory</h3>
+
+                {isApproved && (
+                  <div className="flex items-center gap-1.5 text-xs">
+                    {['ALL', 'AVAILABLE', 'LOW_STOCK', 'OUT_OF_STOCK'].map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setStatusFilter(tab)}
+                        className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
+                          statusFilter === tab
+                            ? 'bg-navy-900 text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {tab === 'ALL' ? 'All Stock' : tab === 'LOW_STOCK' ? 'Low Stock' : tab === 'OUT_OF_STOCK' ? 'Out of Stock' : 'Available'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            }
+          >
+            {!isApproved ? (
+              <div className="py-8 text-center text-xs text-slate-500 space-y-2">
+                <ShieldAlert className="w-8 h-8 text-slate-400 mx-auto" />
+                <p className="font-medium text-slate-700">Inventory Publishing Restricted</p>
+                <p>You will be able to manage inventory stock, set pricing, and publish medicine lines once your account is approved.</p>
+              </div>
+            ) : isLoading ? (
+              <div className="py-12 text-center text-xs text-slate-500">
+                <RefreshCw className="w-6 h-6 text-teal-600 animate-spin mx-auto mb-2" />
+                Loading inventory records...
+              </div>
+            ) : inventory.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-500 space-y-2">
+                <Package className="w-8 h-8 text-slate-400 mx-auto" />
+                <p className="font-medium text-slate-700">No inventory lines found.</p>
+                <p>Click "Add Stock Line" to publish your first inventory entry from the master catalog.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                    <tr>
+                      <th className="py-3 px-3">Medicine & Brand</th>
+                      <th className="py-3 px-3">Dosage / Form</th>
+                      <th className="py-3 px-3">Stock Quantity</th>
+                      <th className="py-3 px-3">Min Level</th>
+                      <th className="py-3 px-3">Price</th>
+                      <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-3">Last Updated</th>
+                      <th className="py-3 px-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {inventory.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3.5 px-3 font-semibold text-slate-900">
+                          <div>{item.medicine_name}</div>
+                          <div className="text-[11px] font-normal text-slate-500">Brand: {item.brand}</div>
+                        </td>
+                        <td className="py-3.5 px-3 text-slate-600 font-mono">
+                          {item.dosage} / {item.form}
+                        </td>
+                        <td className="py-3.5 px-3 font-mono font-bold text-slate-900">
+                          {item.stock_quantity} units
+                        </td>
+                        <td className="py-3.5 px-3 text-slate-500 font-mono">{item.min_stock_level} units</td>
+                        <td className="py-3.5 px-3 font-bold text-navy-900">₹{parseFloat(item.price).toFixed(2)}</td>
+                        <td className="py-3.5 px-3">
+                          <AvailabilityBadge status={item.stock_status} />
+                        </td>
+                        <td className="py-3.5 px-3 text-slate-400 text-[11px]">
+                          {new Date(item.last_updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="py-3.5 px-3 text-right space-x-2">
+                          <button
+                            onClick={() => handleOpenEditModal(item)}
+                            className="text-teal-600 font-medium hover:underline px-1.5 py-1"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item)}
+                            className="text-red-600 font-medium hover:underline px-1.5 py-1"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        )}
 
         {/* Add/Edit Inventory Line Modal */}
         {isModalOpen && (

@@ -11,6 +11,7 @@ export const searchMedicineAvailability = async ({
   form,
   dosage,
   sortBy = 'availability',
+  userId = null,
   limit = 50,
   offset = 0
 }) => {
@@ -102,5 +103,29 @@ export const searchMedicineAvailability = async ({
   sql += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
 
   const result = await query(sql, params);
+
+  // Asynchronously record search history if search query is non-empty
+  if (q && q.trim()) {
+    query(
+      `INSERT INTO search_history (user_id, query_text, selected_location, results_count)
+       VALUES ($1, $2, $3, $4)`,
+      [userId || null, q.trim(), location ? location.trim() : null, result.rows.length]
+    ).catch(err => console.error('[Search History Record Error]', err.message));
+  }
+
+  return result.rows;
+};
+
+/**
+ * Get Search History for User
+ */
+export const getUserSearchHistory = async (userId) => {
+  const result = await query(
+    `SELECT id, query_text, selected_location, results_count, searched_at
+     FROM search_history
+     WHERE user_id = $1
+     ORDER BY searched_at DESC LIMIT 20`,
+    [userId]
+  );
   return result.rows;
 };

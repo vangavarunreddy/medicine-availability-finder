@@ -1,4 +1,5 @@
 import { query } from '../config/db.js';
+import { triggerRestockNotifications } from './notifyService.js';
 
 /**
  * Helper to verify vendor status is APPROVED
@@ -142,6 +143,10 @@ export const addInventoryItem = async (vendorId, data) => {
   if (newItem.stock_quantity === 0) stock_status = 'OUT_OF_STOCK';
   else if (newItem.stock_quantity <= newItem.min_stock_level) stock_status = 'LOW_STOCK';
 
+  if (newItem.stock_quantity > 0) {
+    triggerRestockNotifications(newItem.medicine_id, vendorId);
+  }
+
   return { ...newItem, stock_status };
 };
 
@@ -194,6 +199,10 @@ export const updateInventoryItem = async (vendorId, inventoryId, data) => {
   let stock_status = 'AVAILABLE';
   if (updatedItem.stock_quantity === 0) stock_status = 'OUT_OF_STOCK';
   else if (updatedItem.stock_quantity <= updatedItem.min_stock_level) stock_status = 'LOW_STOCK';
+
+  if (updatedItem.stock_quantity > 0) {
+    triggerRestockNotifications(updatedItem.medicine_id, vendorId);
+  }
 
   return { ...updatedItem, stock_status };
 };

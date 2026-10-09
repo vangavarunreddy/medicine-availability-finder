@@ -8,6 +8,8 @@ import adminVendorRoutes from './routes/adminVendorRoutes.js';
 import medicineRoutes from './routes/medicineRoutes.js';
 import inventoryRoutes from './routes/inventoryRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
+import requestRoutes from './routes/requestRoutes.js';
+import notifyRoutes from './routes/notifyRoutes.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 
 dotenv.config();
@@ -31,6 +33,8 @@ app.use('/api/admin', adminVendorRoutes);
 app.use('/api/medicines', medicineRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/requests', requestRoutes);
+app.use('/api/notify', notifyRoutes);
 
 // Root route welcome
 app.get('/', (req, res) => {

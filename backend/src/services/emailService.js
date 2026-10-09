@@ -11,7 +11,7 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 /**
  * Generic Brevo transactional email sender
  */
-const sendBrevoEmail = async ({ toEmail, toName, subject, htmlContent }) => {
+export const sendBrevoEmail = async ({ toEmail, toName, subject, htmlContent }) => {
   if (!BREVO_API_KEY || BREVO_API_KEY === 'dev_dummy_brevo_key') {
     console.log(`[Email Service (Dev Simulation)] To: ${toEmail} | Subject: "${subject}"`);
     return { success: true, simulated: true };

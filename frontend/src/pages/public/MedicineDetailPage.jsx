@@ -1,33 +1,110 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Pill, MapPin, Phone, Mail, ArrowLeft, RefreshCw, AlertCircle } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Pill, MapPin, Phone, Mail, ArrowLeft, RefreshCw, AlertCircle, Bell, Send, CheckCircle2 } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
+import { Input } from '../../components/common/Input';
 import { AvailabilityBadge, VendorTypeBadge } from '../../components/common/Badge';
 import { Disclaimer } from '../../components/common/Disclaimer';
+import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
 import api from '../../services/api';
 
 export const MedicineDetailPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
+  const { showToast } = useNotification();
+
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchDetails = async () => {
-      setIsLoading(true);
-      try {
-        const response = await api.get(`/medicines/${id}`);
-        setData(response.data);
-      } catch (err) {
-        setError(err.message || 'Failed to load medicine details.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Reservation Modal state
+  const [selectedVendor, setSelectedVendor] = useState(null);
+  const [requestedQty, setRequestedQty] = useState(1);
+  const [notes, setNotes] = useState('');
+  const [isSubmittingReq, setIsSubmittingReq] = useState(false);
 
+  // Subscribing state
+  const [isSubscribing, setIsSubscribing] = useState(false);
+
+  const fetchDetails = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get(`/medicines/${id}`);
+      setData(response.data);
+    } catch (err) {
+      setError(err.message || 'Failed to load medicine details.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchDetails();
   }, [id]);
+
+  const handleOpenRequestModal = (vendor) => {
+    if (!isAuthenticated) {
+      showToast('Please log in as a Patient to submit a reservation request.', 'info');
+      navigate('/login');
+      return;
+    }
+    if (user?.role !== 'PATIENT') {
+      showToast('Reservation requests can only be submitted from Patient accounts.', 'error');
+      return;
+    }
+    setSelectedVendor(vendor);
+    setRequestedQty(1);
+    setNotes('');
+  };
+
+  const handleReservationSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedVendor) return;
+
+    setIsSubmittingReq(true);
+    try {
+      const res = await api.post('/requests', {
+        vendor_id: selectedVendor.vendor_id,
+        medicine_id: id,
+        requested_quantity: requestedQty,
+        notes
+      });
+      showToast(res.message, 'success');
+      setSelectedVendor(null);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setIsSubmittingReq(false);
+    }
+  };
+
+  const handleSubscribeNotifyMe = async (vendorId = null) => {
+    if (!isAuthenticated) {
+      showToast('Please log in to receive availability alerts.', 'info');
+      navigate('/login');
+      return;
+    }
+    if (user?.role !== 'PATIENT') {
+      showToast('Restock alerts can only be set up for Patient accounts.', 'error');
+      return;
+    }
+
+    setIsSubscribing(true);
+    try {
+      const res = await api.post('/notify', {
+        medicine_id: id,
+        vendor_id: vendorId
+      });
+      showToast(res.message, 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -81,12 +158,18 @@ export const MedicineDetailPage = () => {
               </p>
             </div>
             
-            {medicine.manufacturer && (
-              <div className="text-left md:text-right text-xs">
-                <span className="text-slate-400">Manufacturer</span>
-                <div className="font-semibold text-slate-800">{medicine.manufacturer}</div>
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => handleSubscribeNotifyMe(null)}
+                variant="outline"
+                size="sm"
+                isLoading={isSubscribing}
+                className="gap-1.5"
+              >
+                <Bell className="w-4 h-4 text-teal-600" />
+                Notify Me When Available
+              </Button>
+            </div>
           </div>
 
           {medicine.description && (
@@ -107,9 +190,12 @@ export const MedicineDetailPage = () => {
           </div>
         }>
           {approvedVendors.length === 0 ? (
-            <div className="py-10 text-center text-xs text-slate-500 space-y-1">
+            <div className="py-10 text-center text-xs text-slate-500 space-y-3">
               <p className="font-medium text-slate-700">Currently unavailable at all registered pharmacies and agencies.</p>
-              <p>You can set up a "Notify Me" alert from the search results page to receive email updates when restocked.</p>
+              <Button onClick={() => handleSubscribeNotifyMe(null)} variant="primary" size="sm" className="gap-1.5 mx-auto">
+                <Bell className="w-4 h-4" />
+                Subscribe for Restock Notification
+              </Button>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -122,6 +208,7 @@ export const MedicineDetailPage = () => {
                     <th className="py-3 px-3">Available Quantity</th>
                     <th className="py-3 px-3">Price</th>
                     <th className="py-3 px-3">Status</th>
+                    <th className="py-3 px-3 text-right">Reservation Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -146,6 +233,27 @@ export const MedicineDetailPage = () => {
                       <td className="py-3.5 px-3">
                         <AvailabilityBadge status={v.stock_status} />
                       </td>
+                      <td className="py-3.5 px-3 text-right">
+                        {v.stock_status === 'OUT_OF_STOCK' ? (
+                          <Button
+                            onClick={() => handleSubscribeNotifyMe(v.vendor_id)}
+                            variant="secondary"
+                            size="sm"
+                            className="text-[11px] px-2.5 py-1"
+                          >
+                            Notify Me
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => handleOpenRequestModal(v)}
+                            variant="primary"
+                            size="sm"
+                            className="text-[11px] px-2.5 py-1"
+                          >
+                            Reserve Stock
+                          </Button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -153,6 +261,50 @@ export const MedicineDetailPage = () => {
             </div>
           )}
         </Card>
+
+        {/* Reservation Request Modal */}
+        {selectedVendor && (
+          <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
+              <h3 className="font-bold text-base text-navy-900">Submit Reservation Request</h3>
+              <p className="text-xs text-slate-600">
+                Reserve <strong>{medicine.name} ({medicine.brand})</strong> from <strong>{selectedVendor.business_name}</strong>.
+              </p>
+
+              <form onSubmit={handleReservationSubmit} className="space-y-4">
+                <Input
+                  label="Quantity Needed"
+                  type="number"
+                  min="1"
+                  max={selectedVendor.stock_quantity || 100}
+                  required
+                  value={requestedQty}
+                  onChange={(e) => setRequestedQty(e.target.value)}
+                />
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Notes for Pharmacy/Agency (Optional)</label>
+                  <textarea
+                    rows={2}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="e.g. Urgent prescription requirement or pickup time window..."
+                    className="w-full text-xs p-2.5 border border-slate-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button type="button" variant="secondary" size="sm" onClick={() => setSelectedVendor(null)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" variant="primary" size="sm" isLoading={isSubmittingReq}>
+                    Submit Request
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
