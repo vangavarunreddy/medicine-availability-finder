@@ -19,6 +19,18 @@ export async function seedDatabase() {
 
     // Default password hash for demo accounts
     const passwordHash = await bcrypt.hash('DemoPass123!', 10);
+    const adminPasswordHash = await bcrypt.hash('AdminPass123!', 10);
+
+    // Seed Default System Administrator
+    const checkAdmin = await query(`SELECT id FROM users WHERE email = 'admin@medfinder.com'`);
+    if (checkAdmin.rows.length === 0) {
+      await query(
+        `INSERT INTO users (email, password_hash, role, full_name, phone, is_email_verified)
+         VALUES ('admin@medfinder.com', $1, 'ADMIN', 'System Administrator', '+91 90000 00000', TRUE)`,
+        [adminPasswordHash]
+      );
+      console.log('[Seed Step 1.5] Default Admin account created (admin@medfinder.com).');
+    }
 
     // 3. Seed Demo Users & Approved Vendors
     const vendorDefinitions = [
@@ -181,31 +193,56 @@ export async function seedDatabase() {
       }
     }
 
-    console.log(`[Seed Step 2] Seeded 7 Approved Vendors (5 Pharmacies, 2 Agencies) & 2 Demo Patients in Hyderabad.`);
+    console.log(`[Seed Step 2] Seeded 7 Approved Vendors & Demo Patients in Hyderabad.`);
 
-    // 4. Seed 21 Master Medicines
+    // 4. Seed 32 Master Medicines across ALL forms: Tablet, Capsule, Syrup, Injection, Cream, Ointment, Drops, Powder
     const medicineDefinitions = [
+      // Tablets & Capsules
       { name: 'Paracetamol 500mg', brand: 'Dolo 500', generic_name: 'Paracetamol', dosage: '500mg', form: 'Tablet', manufacturer: 'Micro Labs', description: 'Antipyretic and analgesic tablet used for fever and mild to moderate pain relief.' },
       { name: 'Paracetamol 650mg', brand: 'Dolo 650', generic_name: 'Paracetamol', dosage: '650mg', form: 'Tablet', manufacturer: 'Micro Labs', description: 'Higher strength antipyretic for high fever, dengue body aches, and fever symptoms.' },
+      { name: 'Crocin Advance 500mg', brand: 'Crocin', generic_name: 'Paracetamol Fast Release', dosage: '500mg', form: 'Tablet', manufacturer: 'GSK', description: 'Fast acting antipyretic tablet with Optizorb technology.' },
       { name: 'Cetirizine 10mg', brand: 'Okacet', generic_name: 'Cetirizine Hydrochloride', dosage: '10mg', form: 'Tablet', manufacturer: 'Cipla', description: 'Non-drowsy antihistamine tablet for allergic rhinitis, sneezing, and skin allergy relief.' },
+      { name: 'Allegra 120mg', brand: 'Allegra', generic_name: 'Fexofenadine Hydrochloride', dosage: '120mg', form: 'Tablet', manufacturer: 'Sanofi India', description: 'Non-sedating second generation antihistamine tablet for seasonal allergies.' },
       { name: 'Amoxicillin 500mg', brand: 'Mox 500', generic_name: 'Amoxicillin Trihydrate', dosage: '500mg', form: 'Capsule', manufacturer: 'Sun Pharma', description: 'Broad-spectrum penicillin antibiotic capsule for bacterial infections.' },
       { name: 'Azithromycin 500mg', brand: 'Azee 500', generic_name: 'Azithromycin', dosage: '500mg', form: 'Tablet', manufacturer: 'Cipla', description: 'Macrolide antibiotic for upper respiratory tract, throat, and sinus infections.' },
+      { name: 'Augmentin 625 Duo', brand: 'Augmentin 625', generic_name: 'Amoxicillin 500mg + Clavulanic Acid 125mg', dosage: '625mg', form: 'Tablet', manufacturer: 'GSK', description: 'Penicillin-type antibiotic enhanced with beta-lactamase inhibitor for resistant infections.' },
       { name: 'Metformin 500mg', brand: 'Glycomet 500', generic_name: 'Metformin Hydrochloride', dosage: '500mg', form: 'Tablet', manufacturer: 'USV Pharma', description: 'First-line oral antidiabetic medication for glycemic control in Type 2 diabetes.' },
       { name: 'Pantoprazole 40mg', brand: 'Pantocid 40', generic_name: 'Pantoprazole Sodium', dosage: '40mg', form: 'Tablet', manufacturer: 'Alkem Labs', description: 'Proton pump inhibitor (PPI) for GERD, acid reflux, gastritis, and peptic ulcers.' },
       { name: 'Ibuprofen 400mg', brand: 'Brufen 400', generic_name: 'Ibuprofen', dosage: '400mg', form: 'Tablet', manufacturer: 'Abbott India', description: 'Non-steroidal anti-inflammatory drug (NSAID) for muscle strain, arthritis, and toothache.' },
-      { name: 'Amlodipine 5mg', brand: 'Amlokind 5', generic_name: 'Amlodipine Besylate', dosage: '5mg', form: 'Tablet', manufacturer: 'Mankind Pharma', description: 'Calcium channel blocker antihypertensive tablet for high blood pressure.' },
-      { name: 'Atorvastatin 10mg', brand: 'Lipvas 10', generic_name: 'Atorvastatin Calcium', dosage: '10mg', form: 'Tablet', manufacturer: 'Zydus Cadila', description: 'Statin lipid-lowering medication used to manage blood cholesterol and cardiovascular risk.' },
-      { name: 'Omeprazole 20mg', brand: 'Omez 20', generic_name: 'Omeprazole', dosage: '20mg', form: 'Capsule', manufacturer: "Dr. Reddy's Labs", description: 'Antacid capsule for suppressing stomach gastric acid secretion.' },
-      { name: 'Montelukast 10mg', brand: 'Montair 10', generic_name: 'Montelukast Sodium', dosage: '10mg', form: 'Tablet', manufacturer: 'Cipla', description: 'Leukotriene receptor antagonist for asthma management and seasonal allergies.' },
-      { name: 'Ciprofloxacin 500mg', brand: 'Ciplox 500', generic_name: 'Ciprofloxacin', dosage: '500mg', form: 'Tablet', manufacturer: 'Cipla', description: 'Fluoroquinolone antibiotic for urinary tract, typhoid, and GI tract infections.' },
-      { name: 'Losartan 50mg', brand: 'Losar 50', generic_name: 'Losartan Potassium', dosage: '50mg', form: 'Tablet', manufacturer: 'Torrent Pharma', description: 'Angiotensin II receptor blocker (ARB) for blood pressure control.' },
-      { name: 'Telmisartan 40mg', brand: 'Telma 40', generic_name: 'Telmisartan', dosage: '40mg', form: 'Tablet', manufacturer: 'Glenmark Pharma', description: 'Long-acting ARB antihypertensive medication.' },
       { name: 'Combiflam', brand: 'Combiflam', generic_name: 'Ibuprofen 400mg + Paracetamol 325mg', dosage: 'Combination', form: 'Tablet', manufacturer: 'Sanofi India', description: 'Dual-action analgesic and anti-inflammatory combination tablet.' },
-      { name: 'Benadryl Cough Syrup', brand: 'Benadryl DR', generic_name: 'Diphenhydramine 14mg/5ml', dosage: '100ml', form: 'Syrup', manufacturer: 'Johnson & Johnson', description: 'Expectorant cough syrup for soothing dry throat and chest congestion.' },
-      { name: 'Limcee 500mg', brand: 'Limcee', generic_name: 'Ascorbic Acid (Vitamin C)', dosage: '500mg', form: 'Tablet', manufacturer: 'Abbott India', description: 'Chewable Vitamin C supplement for immunity boost and antioxidant support.' },
+      { name: 'Becosules Z Capsules', brand: 'Becosules Z', generic_name: 'B-Complex Vitamins + Zinc', dosage: '1 Capsule', form: 'Capsule', manufacturer: 'Pfizer', description: 'Multivitamin capsule with Vitamin B-Complex and Zinc for energy and mouth ulcer recovery.' },
+      { name: 'Shelcal 500 Tablet', brand: 'Shelcal 500', generic_name: 'Elemental Calcium 500mg + Vitamin D3', dosage: '500mg', form: 'Tablet', manufacturer: 'Torrent Pharma', description: 'Calcium and Vitamin D3 supplement for bone health and osteoporosis management.' },
+
+      // Ointments & Creams
       { name: 'Volini Pain Relief Gel', brand: 'Volini Gel', generic_name: 'Diclofenac Diethylamine 1.16%', dosage: '30g', form: 'Ointment', manufacturer: 'Sun Pharma', description: 'Topical pain relief gel for joint strain, muscle ache, back pain, and sprains.' },
+      { name: 'Neosporin Antibiotic Ointment', brand: 'Neosporin', generic_name: 'Neomycin + Polymyxin B + Bacitracin', dosage: '5g', form: 'Ointment', manufacturer: 'GSK', description: 'Triple antibiotic ointment for minor cuts, scrapes, and skin infection prevention.' },
+      { name: 'Omnigel Topical Gel', brand: 'Omnigel', generic_name: 'Diclofenac + Linseed Oil + Menthol', dosage: '50g', form: 'Ointment', manufacturer: 'Cipla', description: 'Fast absorbing pain relief ointment for arthritis and sports injuries.' },
+      { name: 'Quadriderm RF Cream', brand: 'Quadriderm RF', generic_name: 'Beclomethasone + Clotrimazole + Neomycin', dosage: '10g', form: 'Cream', manufacturer: 'Fulford India', description: 'Broad-spectrum anti-inflammatory, antifungal, and antibacterial skin cream.' },
+      { name: 'Betnovate-N Cream', brand: 'Betnovate-N', generic_name: 'Betamethasone 0.1% + Neomycin 0.5%', dosage: '20g', form: 'Cream', manufacturer: 'GSK', description: 'Corticosteroic antibacterial cream for eczema, psoriasis, and skin inflammation.' },
+      { name: 'Candid B Cream', brand: 'Candid B', generic_name: 'Clotrimazole 1% + Beclomethasone 0.025%', dosage: '20g', form: 'Cream', manufacturer: 'Glenmark Pharma', description: 'Antifungal and steroid cream for fungal skin infections and ringworm.' },
+
+      // Syrups & Liquids
+      { name: 'Benadryl Cough Syrup', brand: 'Benadryl DR', generic_name: 'Diphenhydramine 14mg/5ml', dosage: '100ml', form: 'Syrup', manufacturer: 'Johnson & Johnson', description: 'Expectorant cough syrup for soothing dry throat and chest congestion.' },
+      { name: 'Ascoril LS Syrup', brand: 'Ascoril LS', generic_name: 'Levosalbutamol + Ambroxol + Guaiphenesin', dosage: '100ml', form: 'Syrup', manufacturer: 'Glenmark Pharma', description: 'Bronchodilator and mucolytic expectorant syrup for wet cough and bronchitis.' },
+      { name: 'Grilinctus BM Syrup', brand: 'Grilinctus BM', generic_name: 'Terbutaline + Bromhexine', dosage: '100ml', form: 'Syrup', manufacturer: 'Franco-Indian Pharma', description: 'Mucolytic cough syrup for chest tightness and bronchospasm relief.' },
+      { name: 'Cremaffin Pink Emulsion', brand: 'Cremaffin Pink', generic_name: 'Liquid Paraffin + Milk of Magnesia', dosage: '200ml', form: 'Syrup', manufacturer: 'Abbott India', description: 'Laxative liquid syrup for smooth relief from chronic constipation.' },
+      { name: 'Zincovit Multivitamin Syrup', brand: 'Zincovit Syrup', generic_name: 'Multivitamins + Minerals + Zinc', dosage: '200ml', form: 'Syrup', manufacturer: 'Apex Laboratories', description: 'Nutritional immunity booster syrup for appetite, health, and vitality.' },
+      { name: 'Gelusil MPS Liquid Syrup', brand: 'Gelusil MPS', generic_name: 'Aluminium Hydroxide + Magnesium + Dimethicone', dosage: '200ml', form: 'Syrup', manufacturer: 'Pfizer', description: 'Fast acting antacid syrup for heartburn, acid indigestion, and gas acidity.' },
+
+      // Drops (Eye, Ear, Nasal, Pediatric)
       { name: 'Ciplox Eye Drops', brand: 'Ciplox Drops', generic_name: 'Ciprofloxacin 0.3% w/v', dosage: '10ml', form: 'Drops', manufacturer: 'Cipla', description: 'Antibacterial ophthalmic eye drops for conjunctivitis and red eye infections.' },
-      { name: 'Augmentin 625 Duo', brand: 'Augmentin 625', generic_name: 'Amoxicillin 500mg + Clavulanic Acid 125mg', dosage: '625mg', form: 'Tablet', manufacturer: 'GSK', description: 'Penicillin-type antibiotic enhanced with beta-lactamase inhibitor for resistant infections.' }
+      { name: 'Otrivin Nasal Drops', brand: 'Otrivin Adult', generic_name: 'Xylometazoline Hydrochloride 0.1%', dosage: '10ml', form: 'Drops', manufacturer: 'GSK', description: 'Nasal decongestant drops for quick 2-minute relief from blocked nose.' },
+      { name: 'Refresh Tears Eye Drops', brand: 'Refresh Tears', generic_name: 'Carboxymethylcellulose 0.5%', dosage: '10ml', form: 'Drops', manufacturer: 'Allergan', description: 'Artificial lubricant eye drops for dry, irritated, and burning eyes.' },
+
+      // Injections
+      { name: 'Monocef 1g Injection', brand: 'Monocef 1g', generic_name: 'Ceftriaxone Sodium 1g', dosage: '1000mg', form: 'Injection', manufacturer: 'Aristo Pharmaceuticals', description: 'Third-generation cephalosporin IV/IM antibiotic injection for severe systemic infections.' },
+      { name: 'Dynapar AQ Injection', brand: 'Dynapar AQ', generic_name: 'Diclofenac Sodium 75mg/1ml', dosage: '75mg', form: 'Injection', manufacturer: 'Troikaa Pharmaceuticals', description: 'Fast-acting NSAID analgesic IM injection for post-operative and acute pain.' },
+      { name: 'Insulin Human 40IU Injection', brand: 'Human Actrapid', generic_name: 'Soluble Insulin Human 40IU/ml', dosage: '10ml Vial', form: 'Injection', manufacturer: 'Novo Nordisk', description: 'Short-acting human insulin injection for diabetes blood sugar control.' },
+
+      // Powders
+      { name: 'ORS Oral Rehydration Powder', brand: 'Electral ORS', generic_name: 'Sodium Chloride + Potassium + Dextrose', dosage: '21.8g Sachet', form: 'Powder', manufacturer: 'FDC Limited', description: 'WHO-recommended electrolyte oral rehydration sachet powder for dehydration.' },
+      { name: 'Eno Fruit Salt Powder', brand: 'Eno Regular', generic_name: 'Svarjiksara + Nimbukamlam (Antacid)', dosage: '100g Jar', form: 'Powder', manufacturer: 'GSK', description: 'Fast effervescent antacid powder relief from acidity and bloated stomach.' },
+      { name: 'Protinex Chocolate Health Powder', brand: 'Protinex', generic_name: 'High Protein Nutrition Powder', dosage: '400g Jar', form: 'Powder', manufacturer: 'Danone', description: 'Fortified protein nutritional powder supplement with essential amino acids.' }
     ];
 
     const medicineMap = new Map();
@@ -231,64 +268,63 @@ export async function seedDatabase() {
       medicineMap.set(m.name, medId);
     }
 
-    console.log(`[Seed Step 3] Seeded 21 Master Catalog Medicines.`);
+    console.log(`[Seed Step 3] Seeded ${medicineDefinitions.length} Master Catalog Medicines across ALL forms (Tablet, Capsule, Syrup, Injection, Cream, Ointment, Drops, Powder).`);
 
-    // 5. Seed Inventory Entries for Each Vendor
+    // 5. Seed Inventory Entries for Vendors
     const inventoryData = [
       // Apollo Pharmacy - Jubilee Hills
       { lic: 'HYD-PHARM-001', med: 'Paracetamol 500mg', qty: 150, price: 18.50, min: 10 },
       { lic: 'HYD-PHARM-001', med: 'Paracetamol 650mg', qty: 200, price: 32.00, min: 15 },
       { lic: 'HYD-PHARM-001', med: 'Cetirizine 10mg', qty: 85, price: 42.00, min: 10 },
       { lic: 'HYD-PHARM-001', med: 'Amoxicillin 500mg', qty: 60, price: 78.50, min: 10 },
-      { lic: 'HYD-PHARM-001', med: 'Azithromycin 500mg', qty: 0, price: 118.00, min: 10 }, // Out of stock
-      { lic: 'HYD-PHARM-001', med: 'Pantoprazole 40mg', qty: 110, price: 95.00, min: 10 },
-      { lic: 'HYD-PHARM-001', med: 'Combiflam', qty: 5, price: 45.00, min: 10 }, // Low stock
-      { lic: 'HYD-PHARM-001', med: 'Augmentin 625 Duo', qty: 40, price: 210.00, min: 5 },
+      { lic: 'HYD-PHARM-001', med: 'Volini Pain Relief Gel', qty: 40, price: 135.00, min: 5 },
+      { lic: 'HYD-PHARM-001', med: 'Benadryl Cough Syrup', qty: 55, price: 125.00, min: 5 },
+      { lic: 'HYD-PHARM-001', med: 'Ciplox Eye Drops', qty: 30, price: 29.00, min: 5 },
+      { lic: 'HYD-PHARM-001', med: 'ORS Oral Rehydration Powder', qty: 200, price: 21.50, min: 20 },
+      { lic: 'HYD-PHARM-001', med: 'Monocef 1g Injection', qty: 15, price: 65.00, min: 5 },
 
       // MedPlus Pharmacy - Banjara Hills
       { lic: 'HYD-PHARM-002', med: 'Paracetamol 650mg', qty: 180, price: 30.00, min: 15 },
       { lic: 'HYD-PHARM-002', med: 'Amoxicillin 500mg', qty: 95, price: 75.00, min: 10 },
-      { lic: 'HYD-PHARM-002', med: 'Metformin 500mg', qty: 220, price: 52.00, min: 20 },
-      { lic: 'HYD-PHARM-002', med: 'Atorvastatin 10mg', qty: 70, price: 115.00, min: 10 },
-      { lic: 'HYD-PHARM-002', med: 'Montelukast 10mg', qty: 4, price: 140.00, min: 10 }, // Low stock
-      { lic: 'HYD-PHARM-002', med: 'Benadryl Cough Syrup', qty: 35, price: 125.00, min: 5 },
-      { lic: 'HYD-PHARM-002', med: 'Limcee 500mg', qty: 300, price: 24.50, min: 25 },
+      { lic: 'HYD-PHARM-002', med: 'Ascoril LS Syrup', qty: 45, price: 130.00, min: 5 },
+      { lic: 'HYD-PHARM-002', med: 'Neosporin Antibiotic Ointment', qty: 25, price: 95.00, min: 5 },
+      { lic: 'HYD-PHARM-002', med: 'Betnovate-N Cream', qty: 50, price: 58.00, min: 10 },
+      { lic: 'HYD-PHARM-002', med: 'Otrivin Nasal Drops', qty: 60, price: 68.00, min: 10 },
+      { lic: 'HYD-PHARM-002', med: 'Eno Fruit Salt Powder', qty: 120, price: 160.00, min: 15 },
 
       // Wellness Forever - Madhapur
       { lic: 'HYD-PHARM-003', med: 'Cetirizine 10mg', qty: 120, price: 38.00, min: 10 },
       { lic: 'HYD-PHARM-003', med: 'Ibuprofen 400mg', qty: 140, price: 28.00, min: 15 },
-      { lic: 'HYD-PHARM-003', med: 'Pantoprazole 40mg', qty: 0, price: 90.00, min: 10 }, // Out of stock
-      { lic: 'HYD-PHARM-003', med: 'Amlodipine 5mg', qty: 160, price: 34.00, min: 15 },
-      { lic: 'HYD-PHARM-003', med: 'Omeprazole 20mg', qty: 90, price: 62.00, min: 10 },
-      { lic: 'HYD-PHARM-003', med: 'Volini Pain Relief Gel', qty: 45, price: 135.00, min: 5 },
+      { lic: 'HYD-PHARM-003', med: 'Candid B Cream', qty: 35, price: 115.00, min: 5 },
+      { lic: 'HYD-PHARM-003', med: 'Gelusil MPS Liquid Syrup', qty: 40, price: 145.00, min: 5 },
+      { lic: 'HYD-PHARM-003', med: 'Refresh Tears Eye Drops', qty: 25, price: 165.00, min: 5 },
+      { lic: 'HYD-PHARM-003', med: 'Dynapar AQ Injection', qty: 20, price: 42.00, min: 5 },
 
       // Care Pharmacy & Surgical - Gachibowli
       { lic: 'HYD-PHARM-004', med: 'Paracetamol 500mg', qty: 250, price: 16.00, min: 20 },
-      { lic: 'HYD-PHARM-004', med: 'Azithromycin 500mg', qty: 50, price: 112.00, min: 10 },
-      { lic: 'HYD-PHARM-004', med: 'Ciprofloxacin 500mg', qty: 3, price: 82.00, min: 10 }, // Low stock
-      { lic: 'HYD-PHARM-004', med: 'Telmisartan 40mg', qty: 130, price: 98.00, min: 10 },
-      { lic: 'HYD-PHARM-004', med: 'Combiflam', qty: 180, price: 42.00, min: 15 },
-      { lic: 'HYD-PHARM-004', med: 'Ciplox Eye Drops', qty: 65, price: 29.00, min: 5 },
+      { lic: 'HYD-PHARM-004', med: 'Zincovit Multivitamin Syrup', qty: 70, price: 155.00, min: 10 },
+      { lic: 'HYD-PHARM-004', med: 'Quadriderm RF Cream', qty: 30, price: 110.00, min: 5 },
+      { lic: 'HYD-PHARM-004', med: 'Protinex Chocolate Health Powder', qty: 25, price: 450.00, min: 5 },
+      { lic: 'HYD-PHARM-004', med: 'Insulin Human 40IU Injection', qty: 12, price: 185.00, min: 3 },
 
       // Sri Sai Medical Stores - Ameerpet
       { lic: 'HYD-PHARM-005', med: 'Paracetamol 650mg', qty: 100, price: 31.00, min: 10 },
-      { lic: 'HYD-PHARM-005', med: 'Cetirizine 10mg', qty: 75, price: 40.00, min: 10 },
-      { lic: 'HYD-PHARM-005', med: 'Metformin 500mg', qty: 190, price: 48.00, min: 15 },
-      { lic: 'HYD-PHARM-005', med: 'Losartan 50mg', qty: 85, price: 72.00, min: 10 },
-      { lic: 'HYD-PHARM-005', med: 'Benadryl Cough Syrup', qty: 0, price: 120.00, min: 5 }, // Out of stock
+      { lic: 'HYD-PHARM-005', med: 'Grilinctus BM Syrup', qty: 40, price: 108.00, min: 5 },
+      { lic: 'HYD-PHARM-005', med: 'Omnigel Topical Gel', qty: 30, price: 120.00, min: 5 },
+      { lic: 'HYD-PHARM-005', med: 'ORS Oral Rehydration Powder', qty: 150, price: 21.00, min: 20 },
 
       // Standard Medical Agency - Secunderabad (Wholesale Agency)
       { lic: 'HYD-AGNC-001', med: 'Paracetamol 500mg', qty: 1200, price: 14.00, min: 100 },
       { lic: 'HYD-AGNC-001', med: 'Amoxicillin 500mg', qty: 800, price: 68.00, min: 50 },
-      { lic: 'HYD-AGNC-001', med: 'Azithromycin 500mg', qty: 450, price: 102.00, min: 30 },
-      { lic: 'HYD-AGNC-001', med: 'Augmentin 625 Duo', qty: 300, price: 195.00, min: 20 },
-      { lic: 'HYD-AGNC-001', med: 'Metformin 500mg', qty: 1500, price: 44.00, min: 100 },
+      { lic: 'HYD-AGNC-001', med: 'Benadryl Cough Syrup', qty: 400, price: 105.00, min: 30 },
+      { lic: 'HYD-AGNC-001', med: 'Volini Pain Relief Gel', qty: 300, price: 110.00, min: 20 },
+      { lic: 'HYD-AGNC-001', med: 'Monocef 1g Injection', qty: 250, price: 52.00, min: 20 },
 
       // Apex Pharma Wholesale Distributors - Kukatpally (Wholesale Agency)
       { lic: 'HYD-AGNC-002', med: 'Pantoprazole 40mg', qty: 950, price: 82.00, min: 50 },
-      { lic: 'HYD-AGNC-002', med: 'Atorvastatin 10mg', qty: 600, price: 105.00, min: 30 },
-      { lic: 'HYD-AGNC-002', med: 'Telmisartan 40mg', qty: 700, price: 88.00, min: 40 },
-      { lic: 'HYD-AGNC-002', med: 'Limcee 500mg', qty: 2500, price: 20.00, min: 200 }
+      { lic: 'HYD-AGNC-002', med: 'Zincovit Multivitamin Syrup', qty: 500, price: 130.00, min: 30 },
+      { lic: 'HYD-AGNC-002', med: 'Betnovate-N Cream', qty: 600, price: 48.00, min: 40 },
+      { lic: 'HYD-AGNC-002', med: 'Ciplox Eye Drops', qty: 450, price: 22.00, min: 30 }
     ];
 
     let invCount = 0;
@@ -311,7 +347,6 @@ export async function seedDatabase() {
         );
         invCount++;
       } else {
-        // Safe refresh of demonstration stock without overwriting if vendor manually changed it
         await query(
           `UPDATE inventories SET is_demo = TRUE WHERE id = $1`,
           [checkInv.rows[0].id]
