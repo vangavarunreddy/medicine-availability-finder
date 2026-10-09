@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Search, Filter, MapPin, RefreshCw, Bell, Info } from 'lucide-react';
 import { Button } from '../../components/common/Button';
-import { AvailabilityBadge, VendorTypeBadge } from '../../components/common/Badge';
+import { AvailabilityBadge, VendorTypeBadge, DemoDataBadge } from '../../components/common/Badge';
 import { Disclaimer } from '../../components/common/Disclaimer';
 import { useNotification } from '../../context/NotificationContext';
 import api from '../../services/api';
@@ -22,11 +22,13 @@ export const SearchPage = () => {
 
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
 
   const { showToast } = useNotification();
 
   const fetchSearchResults = async () => {
     setIsLoading(true);
+    setApiError(null);
     try {
       const params = new URLSearchParams();
       if (query) params.set('q', query);
@@ -38,9 +40,10 @@ export const SearchPage = () => {
       if (sortBy) params.set('sortBy', sortBy);
 
       const response = await api.get(`/search?${params.toString()}`);
-      setResults(response.data.results);
+      setResults(response.data.results || []);
     } catch (err) {
       console.error('Search error:', err.message);
+      setApiError(err.message || 'Unable to connect to medicine availability database.');
       showToast(err.message || 'Failed to search medicine availability.', 'error');
     } finally {
       setIsLoading(false);
@@ -213,10 +216,25 @@ export const SearchPage = () => {
               </span>
             </div>
 
-            {isLoading ? (
-              <div className="bg-white border border-slate-200 rounded-lg p-12 text-center text-xs text-slate-500">
-                <RefreshCw className="w-8 h-8 text-teal-600 animate-spin mx-auto mb-2" />
-                Searching inventory across verified pharmacies and agencies...
+            {apiError ? (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center text-xs text-red-700 space-y-3">
+                <Info className="w-8 h-8 text-red-500 mx-auto" />
+                <p className="font-bold text-sm">Database Service Connection Issue</p>
+                <p className="text-red-600">{apiError}</p>
+                <Button onClick={fetchSearchResults} variant="secondary" size="sm" className="mx-auto gap-1">
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Retry Connection
+                </Button>
+              </div>
+            ) : isLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="bg-white border border-slate-200 rounded-lg p-5 shadow-card animate-pulse space-y-3">
+                    <div className="h-5 bg-slate-200 rounded w-1/3"></div>
+                    <div className="h-4 bg-slate-100 rounded w-1/2"></div>
+                    <div className="h-4 bg-slate-100 rounded w-1/4"></div>
+                  </div>
+                ))}
               </div>
             ) : results.length === 0 ? (
               <div className="bg-white border border-slate-200 rounded-lg p-12 text-center text-xs text-slate-500 space-y-2">
@@ -226,15 +244,16 @@ export const SearchPage = () => {
               </div>
             ) : (
               results.map((item) => (
-                <div key={item.inventory_id} className="bg-white border border-slate-200 rounded-lg p-5 shadow-card hover:border-slate-300 transition-colors">
+                <div key={item.inventory_id} className="bg-white border border-slate-200 rounded-lg p-5 shadow-card hover:border-teal-500/40 transition-colors">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-3">
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Link to={`/medicines/${item.medicine_id}`} className="font-bold text-lg text-navy-900 hover:text-teal-600 transition-colors">
                           {item.medicine_name}
                         </Link>
                         <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-mono">{item.dosage}</span>
                         <VendorTypeBadge type={item.vendor_type} />
+                        {(item.is_demo || item.vendor_is_demo) && <DemoDataBadge />}
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
                         Brand: <span className="font-medium text-slate-700">{item.brand}</span> | Generic: <span className="italic text-slate-700">{item.generic_name}</span> | Form: <span className="text-slate-700">{item.form}</span>
@@ -252,7 +271,9 @@ export const SearchPage = () => {
 
                   <div className="pt-3 flex flex-col md:flex-row md:items-center justify-between text-xs gap-3">
                     <div className="space-y-1 text-slate-600">
-                      <p className="font-semibold text-slate-800">{item.vendor_name}</p>
+                      <p className="font-semibold text-slate-800 flex items-center gap-1.5">
+                        {item.vendor_name}
+                      </p>
                       <p className="flex items-center gap-1.5 text-slate-500">
                         <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         {item.address}, {item.city}, {item.state} ({item.pincode})
@@ -264,7 +285,7 @@ export const SearchPage = () => {
 
                     <div className="flex items-center gap-2 pt-2 md:pt-0">
                       <Link to={`/medicines/${item.medicine_id}`}>
-                        <Button variant="secondary" size="sm" className="w-full md:w-auto">
+                        <Button variant="primary" size="sm" className="w-full md:w-auto gap-1">
                           View Details & Vendors
                         </Button>
                       </Link>

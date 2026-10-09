@@ -40,3 +40,11 @@ export const VendorTypeBadge = ({ type }) => {
     </span>
   );
 };
+
+export const DemoDataBadge = () => {
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-amber-50 text-amber-800 border border-amber-300 font-mono">
+      DEMO DATA
+    </span>
+  );
+};

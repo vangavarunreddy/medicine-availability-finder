@@ -4,7 +4,7 @@ import { Pill, MapPin, Phone, Mail, ArrowLeft, RefreshCw, AlertCircle, Bell, Sen
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
-import { AvailabilityBadge, VendorTypeBadge } from '../../components/common/Badge';
+import { AvailabilityBadge, VendorTypeBadge, DemoDataBadge } from '../../components/common/Badge';
 import { Disclaimer } from '../../components/common/Disclaimer';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
@@ -216,7 +216,10 @@ export const MedicineDetailPage = () => {
                     <tr key={v.inventory_id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-3">
                         <div className="font-bold text-navy-900">{v.business_name}</div>
-                        <VendorTypeBadge type={v.vendor_type} />
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <VendorTypeBadge type={v.vendor_type} />
+                          {(v.is_demo || v.vendor_is_demo) && <DemoDataBadge />}
+                        </div>
                       </td>
                       <td className="py-3.5 px-3 text-slate-600">
                         <div className="flex items-start gap-1">

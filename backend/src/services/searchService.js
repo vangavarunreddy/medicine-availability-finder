@@ -16,10 +16,10 @@ export const searchMedicineAvailability = async ({
   offset = 0
 }) => {
   let sql = `
-    SELECT i.id as inventory_id, i.stock_quantity, i.price, i.min_stock_level, i.last_updated,
+    SELECT i.id as inventory_id, i.stock_quantity, i.price, i.min_stock_level, i.last_updated, COALESCE(i.is_demo, FALSE) as is_demo,
            m.id as medicine_id, m.name as medicine_name, m.brand, m.generic_name, m.dosage, m.form, m.manufacturer, m.description,
            v.id as vendor_id, v.business_name as vendor_name, v.vendor_type, v.phone as vendor_phone, v.email as vendor_email,
-           v.address, v.city, v.state, v.pincode, v.latitude, v.longitude,
+           v.address, v.city, v.state, v.pincode, v.latitude, v.longitude, COALESCE(v.is_demo, FALSE) as vendor_is_demo,
            CASE 
              WHEN i.stock_quantity = 0 THEN 'OUT_OF_STOCK'
              WHEN i.stock_quantity <= i.min_stock_level THEN 'LOW_STOCK'
@@ -104,13 +104,17 @@ export const searchMedicineAvailability = async ({
 
   const result = await query(sql, params);
 
-  // Asynchronously record search history if search query is non-empty
+  // Record search history if search query is non-empty
   if (q && q.trim()) {
-    query(
-      `INSERT INTO search_history (user_id, query_text, selected_location, results_count)
-       VALUES ($1, $2, $3, $4)`,
-      [userId || null, q.trim(), location ? location.trim() : null, result.rows.length]
-    ).catch(err => console.error('[Search History Record Error]', err.message));
+    try {
+      await query(
+        `INSERT INTO search_history (user_id, query_text, selected_location, results_count)
+         VALUES ($1, $2, $3, $4)`,
+        [userId || null, q.trim(), location ? location.trim() : null, result.rows.length]
+      );
+    } catch (err) {
+      console.error('[Search History Record Error]', err.message);
+    }
   }
 
   return result.rows;
