@@ -1,0 +1,52 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import healthRoutes from './routes/healthRoutes.js';
+import authRoutes from './routes/authRoutes.js';
+import vendorRoutes from './routes/vendorRoutes.js';
+import adminVendorRoutes from './routes/adminVendorRoutes.js';
+import medicineRoutes from './routes/medicineRoutes.js';
+import inventoryRoutes from './routes/inventoryRoutes.js';
+import searchRoutes from './routes/searchRoutes.js';
+import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Security & Parsing Middlewares
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// API Routes
+app.use('/api', healthRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/vendors', vendorRoutes);
+app.use('/api/admin', adminVendorRoutes);
+app.use('/api/medicines', medicineRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/search', searchRoutes);
+
+// Root route welcome
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Welcome to Medicine Availability Finder API Server',
+    healthCheck: '/api/health'
+  });
+});
+
+// 404 & Error Handling
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+// Start HTTP Server
+app.listen(PORT, () => {
+  console.log(`[API Server] Running on http://localhost:${PORT}`);
+  console.log(`[API Server] Environment: ${process.env.NODE_ENV || 'development'}`);
+});
